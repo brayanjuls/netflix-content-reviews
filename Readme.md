@@ -6,6 +6,10 @@ This project is a data pipeline created with the intention of generating data re
 * [Kaggle Netflix Movies and TV Shows DataSet](https://www.kaggle.com/shivamb/netflix-shows/data#) 
 * [Reddit api](https://www.reddit.com/dev/api)
 
+## Architecture 
+
+![architecture](resources/Netflix_content_review.jpg)
+
 ## PreRequisit
 Python 3.5 or later
 Jupyter Notebook 
