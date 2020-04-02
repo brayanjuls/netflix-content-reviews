@@ -10,12 +10,14 @@ default_args = {
 }
 
 
-dag = DAG("content_review",default_args=default_args)
+dag = DAG("content_review",default_args=default_args,schedule_interval=None)
 
 start_pipeline = DummyOperator(task_id="StartPipeline",dag=dag)
-download_kaggle_dataset = DownloadKaggleDataSet(task_id="DownloadKaggleDataSet",name="shivamb/netflix-shows",destination_path="/",dag=dag)
-copy_netflix_catalog = NetflixCatalogToS3(task_id="NetflixCatalogToStagging",s3_bucket="",source_path="",dag=dag)
-reddit_comment_to_staginng = RedditCommentToS3(task_id="RedditCommentToStagging",query_date="",client_id="",
+download_kaggle_dataset = DownloadKaggleDataSet(task_id="DownloadKaggleDataSet",name="shivamb/netflix-shows",
+	destination_path="/airflow/datasources/",dag=dag)
+copy_netflix_catalog = NetflixCatalogToS3(task_id="NetflixCatalogToStagging",s3_bucket="netflix-content/catalog",
+	source_path="/airflow/datasources/",aws_credentials_id="aws_credentials",dag=dag)
+reddit_comment_to_staginng = RedditCommentToS3(task_id="RedditCommentToStagging",query_date="{ds}",client_id="",
 	client_secret="",sub_reddits=["netflix","NetflixBestOf","bestofnetflix"],s3_bucket="",dag=dag)
 
 end_pipeline = DummyOperator(task_id="EndPipeline",dag=dag)

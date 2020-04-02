@@ -15,7 +15,8 @@ Python 3.5 or later
 Jupyter Notebook 
 
 ## Configuration
+* The following docker image was used to deploy the project [airflow-pipeline](https://github.com/brayanjuls/airflow-pipeline)
 
-praw.ini = File to add properties related to reddit like the authentication credentials
+* praw.ini = File to add properties related to reddit like the authentication credentials
 
-XDG_CONFIG_HOME = Enviroment variable to set the folder path where the praw.init file is going to live
+* XDG_CONFIG_HOME = Enviroment variable to set the folder path where the praw.init file is going to live
