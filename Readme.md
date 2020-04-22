@@ -8,7 +8,7 @@ This project is a data pipeline created with the intention of generating data re
 
 ## Architecture 
 
-![architecture](resources/Netflix_content_review.jpg)
+![architecture](resources/Netflix_content_review_GCP.jpg)
 
 ## PreRequisit
 Python 3.5 or later

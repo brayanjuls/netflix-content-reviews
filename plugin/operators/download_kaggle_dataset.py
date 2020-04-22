@@ -2,6 +2,7 @@ from airflow.utils.decorators import apply_defaults
 from airflow.models import BaseOperator
 import kaggle
 
+
 class DownloadKaggleDataSet(BaseOperator):
 
     @apply_defaults
@@ -16,4 +17,4 @@ class DownloadKaggleDataSet(BaseOperator):
         self.unzip_file = unzip_file
 
     def execute(self, context):
-        kaggle.api.dataset_download_files(dataset=self.name,path=self.destination_path,unzip=self.unzip_file)
+        kaggle.api.dataset_download_files(dataset=self.name, path=self.destination_path, unzip=self.unzip_file)
