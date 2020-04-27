@@ -10,7 +10,10 @@ This project is a data pipeline created with the intention of generating data re
 
 ![architecture](resources/Netflix_content_review_GCP.jpg)
 
-## PreRequisit
+#### BigQuery table structure
+![big_query_table_structure](resources/shows_bigquery_table.png)
+
+## Pre Requisite
 Python 3.5 or later
 Jupyter Notebook 
 
