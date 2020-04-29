@@ -59,6 +59,13 @@ upload_reddit_comments_job_to_gcs = FileToGoogleCloudStorageOperator(task_id="up
                                                                      google_cloud_storage_conn_id=gcp_conn,
                                                                      dag=dag)
 
+upload_content_comments_job_to_gcs = FileToGoogleCloudStorageOperator(task_id="upload_content_comments_job_to_gcs",
+                                                                      src="/airflow/dags/spark-scripts/populate_shows_table.py",
+                                                                      dst="spark-jobs/populate_shows_table.py",
+                                                                      bucket=gcs_netflix_bucket,
+                                                                      google_cloud_storage_conn_id=gcp_conn,
+                                                                      dag=dag)
+
 catalog_task_id = "show_catalog_subdag"
 catalog_path = "catalog/clean/catalog.parquet"
 download_catalog_show_subdag = SubDagOperator(
@@ -105,12 +112,13 @@ create_shows_comments_dataset = BigQueryCreateEmptyDatasetOperator(
     dag=dag
 )
 
+shows_table_name = "shows"
 create_shows_table = BigQueryCreateEmptyTableOperator(
     task_id="create_shows_table",
     project_id=Variable.get('gc_project_id'),
     dataset_id=dataset_id,
     bigquery_conn_id=gcp_conn,
-    table_id="shows",
+    table_id=shows_table_name,
     schema_fields=[{"name": "release_date", "type": "TIMESTAMP", "mode": "REQUIRED"},
                    {"name": "added_date", "type": "TIMESTAMP", "mode": "REQUIRED"},
                    {"name": "title", "type": "STRING", "mode": "REQUIRED"},
@@ -135,6 +143,20 @@ create_shows_table = BigQueryCreateEmptyTableOperator(
     dag=dag
 )
 
+populate_shows_table_job_path = "gs://" + gcs_netflix_bucket + "/spark-jobs/populate_shows_table.py"
+populate_shows_table = DataProcPySparkOperator(
+    task_id='populate_shows_table',
+    main=populate_shows_table_job_path,
+    cluster_name=cluster_name,
+    job_name='content_comments_to_bigquery',
+    region=region,
+    arguments=["{}.{}".format(dataset_id, shows_table_name), gcp_netflix_catalog_path, reddit_destination_path,
+               gcs_netflix_bucket],
+    dataproc_pyspark_jars='gs://spark-lib/bigquery/spark-bigquery-latest_2.12.jar',
+    gcp_conn_id=gcp_conn,
+    dag=dag
+)
+
 delete_dataproc_cluster = DataprocClusterDeleteOperator(
     task_id='delete_dataproc_cluster',
     cluster_name=cluster_name,
@@ -148,8 +170,10 @@ end_pipeline = DummyOperator(task_id="EndPipeline", dag=dag)
 
 start_pipeline >> create_dataproc_cluster >> [upload_netflix_catalog_job_to_gcs,
                                               upload_reddit_comments_job_to_gcs,
-                                              create_shows_comments_dataset]
+                                              create_shows_comments_dataset,
+                                              upload_content_comments_job_to_gcs]
 [upload_netflix_catalog_job_to_gcs,
  upload_reddit_comments_job_to_gcs,
- create_shows_comments_dataset] >> download_catalog_show_subdag >> [create_shows_table, reddit_comment_to_gcp]
-[create_shows_table, reddit_comment_to_gcp] >> delete_dataproc_cluster >> end_pipeline
+ create_shows_comments_dataset,
+ upload_content_comments_job_to_gcs] >> download_catalog_show_subdag >> [create_shows_table, reddit_comment_to_gcp]
+[create_shows_table, reddit_comment_to_gcp] >> populate_shows_table >> delete_dataproc_cluster >> end_pipeline
