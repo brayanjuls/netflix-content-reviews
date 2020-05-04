@@ -16,32 +16,27 @@ class ContentCommentsToBigQuery:
         return tp.StructType([tp.StructField('added_date', tp.DateType(), True),
                               tp.StructField('release_year', tp.IntegerType(), True),
                               tp.StructField('title', tp.StringType(), False),
+                              tp.StructField('director', tp.StringType(), True),
                               tp.StructField('type', tp.StringType(), False),
                               tp.StructField('duration', tp.StringType(), True),
                               tp.StructField('description', tp.StringType(), True),
-                              tp.StructField('director', tp.StringType(), True),
                               tp.StructField('comments', tp.ArrayType(tp.StructType([
-                                  tp.StructField('body', tp.StringType(), False),
-                                  tp.StructField('author', tp.StringType(), False),
-                                  tp.StructField('created_utc', tp.TimestampType(), False),
-                                  tp.StructField('score', tp.IntegerType(), False),
+                                  tp.StructField('body', tp.StringType(), True),
+                                  tp.StructField('author', tp.StringType(), True),
+                                  tp.StructField('created_utc', tp.TimestampType(), True),
+                                  tp.StructField('score', tp.IntegerType(), True),
                                   tp.StructField('sentiment', tp.StringType(), True),
                                   tp.StructField('description_word', tp.StringType(), True),
                                   tp.StructField('source', tp.StringType(), True)
                               ])), True),
                               tp.StructField('actors', tp.ArrayType(tp.StructType([
-                                  tp.StructField('name', tp.StringType(), False)
+                                  tp.StructField('name', tp.StringType(), True)
                               ])), True)
                               ])
 
     def execute(self):
         spark = SparkSession.builder.appName('ContentReviewToBigQuery').getOrCreate()
         spark.conf.set('temporaryGcsBucket', self.temp_bucket)
-        content_review_df = self.join_and_structure_dataset(spark)
-        content_review_structured = spark.createDataFrame(content_review_df.rdd, self.get_df_schema())
-        content_review_structured.write.format('bigquery').mode('Overwrite').option('table', self.table_name).save()
-
-    def join_and_structure_dataset(self, spark):
         catalog_df = spark.read.parquet(self.catalog_path)
         comments_df = spark.read.parquet(self.comments_path)
 
@@ -50,18 +45,26 @@ class ContentCommentsToBigQuery:
                                            catalog_df.director,
                                            fc.explode(fc.split(catalog_df.cast, ',')).alias('actor'))
 
-        unnest_comments = comments_df.withColumn('comments', fc.explode(comments_df.comments).alias('comments')).select(
+        spark.catalog.dropTempView("catalog_temp")
+        unnest_catalog.createTempView('catalog_temp')
+        for catalog in unnest_catalog.collect():
+            content_review_df = self.join_and_structure_dataset(spark, catalog, comments_df)
+            if len(content_review_df.select('comments').toPandas()) > 0:
+                content_review_structured = spark.createDataFrame(content_review_df.rdd, self.get_df_schema())
+                content_review_structured.write.format('bigquery').mode('Append').option('table',
+                                                                                         self.table_name).save()
+
+    def join_and_structure_dataset(self, spark, catalog, comments_df):
+        unnest_comments = comments_df.where((comments_df.show_title == catalog.title) & (comments_df.show_director == catalog.director)) \
+            .withColumn('comments', fc.explode(comments_df.comments).alias('comments')).select(
             comments_df.show_title, comments_df.source, comments_df.title,
             comments_df.description, comments_df.author,
             'comments.*')
-
-        spark.catalog.dropTempView("catalog_temp")
-        unnest_catalog.createTempView('catalog_temp')
         spark.catalog.dropTempView("comments_temp")
         unnest_comments.createTempView('comments_temp')
 
         structured_result = spark.sql(
-            'select ct.date_added,ct.release_year,ct.title,ct.type,ct.duration,ct.description,ct.director, '
+            'select ct.date_added,ct.release_year,ct.title,ct.director,ct.type,ct.duration,ct.description, '
             'COLLECT_LIST(STRUCT(co.body as body,co.author,co.created_utc as created, co.score,null as sentiment, '
             'null as description_word, null as source)) as comments, '
             'COLLECT_LIST(STRUCT(ct.actor as name)) as actor '

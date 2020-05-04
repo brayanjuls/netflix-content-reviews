@@ -209,3 +209,6 @@ fabric.properties
 .idea/modules.xml
 .idea/vcs.xml
 
+# Jupyter Notebooks
+.ipynb_checkpoints/
+

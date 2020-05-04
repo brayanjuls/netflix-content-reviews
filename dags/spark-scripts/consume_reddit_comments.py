@@ -24,6 +24,7 @@ class RedditComments:
 
     def getRedditDataFrameSchema(self):
         return tp.StructType([tp.StructField('show_title', tp.StringType(), True),
+                              tp.StructField('show_director', tp.StringType(), True),
                               tp.StructField('submission_id', tp.StringType(), True),
                               tp.StructField('source', tp.StringType(), True),
                               tp.StructField('title', tp.StringType(), True),
@@ -47,7 +48,7 @@ class RedditComments:
 
     def getRedditComments(self, reddit, show, sub_reddit, reddit_schema, spark, mylogger):
         content_rows = []
-        mylogger.info("current execution of subreddit and show {} {}".format(sub_reddit, show.title))
+        mylogger.info("current execution of subreddit and show {} {}".format(sub_reddit,show.title))
         title_split = show.title.split(":", 1)
         content_title = title_split[0]
         subreddit = reddit.subreddit(sub_reddit)
@@ -58,7 +59,7 @@ class RedditComments:
                 row_comments.append(
                     (comment.id, comment.body, dt.fromtimestamp(float(comment.created_utc)), comment.score,
                      comment.parent_id, comment.link_id))
-            current_sm = (show.title, sm.id, subreddit.display_name, sm.title, sm.selftext,
+            current_sm = (show.title, show.director, sm.id, subreddit.display_name, sm.title, sm.selftext,
                           dt.fromtimestamp(float(sm.created_utc)), sm.author.name,
                           sm.score, sm.spoiler, sm.is_original_content, sm.distinguished, sm.permalink,
                           row_comments)
@@ -78,11 +79,10 @@ class RedditComments:
         reddits = self.sub_reddits.split()
         for sub_reddit in reddits:
             for show in df_netflix_shows_catalog.limit(1000).collect():
-                df_rdt_netflix_shows_comments = self.getRedditComments(reddit, show, sub_reddit,
-                                                                       reddit_schema,
-                                                                       spark, mylogger)
-                df_rdt_netflix_shows_comments.write.partitionBy("show_title").parquet(self.comments_destination_path,
-                                                                                      mode="append")
+              df_rdt_netflix_shows_comments = self.getRedditComments(reddit, show, sub_reddit,
+                                                                     reddit_schema,
+                                                                     spark, mylogger)
+              df_rdt_netflix_shows_comments.write.partitionBy("show_title").parquet(self.comments_destination_path, mode="append")
 
 
 arg_reddit_client_id = sys.argv[1]
