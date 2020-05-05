@@ -16,7 +16,7 @@ class NetflixCatalog:
 
     def clean(self):
         catalog_df = self.spark.read.csv(self.source_path, inferSchema=True, header=True,
-                                         mode="DROPMALFORMED")  ##'gs://netflix-content/catalog/raw/catalog.csv'
+                                         mode="DROPMALFORMED")
         non_duplicated_content = catalog_df.dropDuplicates(['title', 'director']).orderBy(fc.desc('title'))
         df_netflix_catalog = non_duplicated_content.dropna('any', subset=['title','director']).orderBy(fc.asc('title'))
         df_netflix_catalog = df_netflix_catalog.withColumn('title', fc.translate('title', '"', ''))
@@ -25,7 +25,7 @@ class NetflixCatalog:
         df_netflix_catalog = df_netflix_catalog.withColumn('release_year', col('release_year').cast(tp.IntegerType()))
         df_netflix_catalog = df_netflix_catalog.withColumn('date_added', fc.to_date('date_added', 'MMMMM dd, yyyy'))
         df_netflix_catalog.write.partitionBy(['title', 'director']).bucketBy(2,"release_year").parquet(self.destination_path,
-                                         mode='overwrite')  ## 'gs://netflix-content/catalog/clean/catalog.parquet'
+                                         mode='overwrite')
         print("Clean Catalog Executed")
 
 
